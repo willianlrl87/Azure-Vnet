@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # login no azure
 Connect-AzAccount -UseDeviceAuthentication
 
