@@ -61,4 +61,5 @@ New-AzVirtualNetwork -Name $vnetname -ResourceGroup $rg -Location $local -Addres
 
 # Listar VNET's
 Get-AzVirtualNetwork -Name $vnetname -ResourceGroup $rg
+teste
 >>>>>>> d32019d6a8067d0eae53ffab41c3537373ec6bd2
