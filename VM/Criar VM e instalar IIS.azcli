@@ -1,0 +1,44 @@
+# Login no azure
+az login
+
+# Parametros
+rg=rg-winserver
+local=brazilsouth
+vm=vm-winserver
+img=Win2022AzureEditionCore
+user=azureuser
+
+# Criar grupo de recursos
+az group create -n $rg -l $local
+
+# Criar VM com Windows Server 2022 Azure Edition Core
+az vm create -g $rg -n $vm --image $img --admin-username $user --admin-password tr@ining2023
+
+# Listar VM's
+az vm list -g $rg
+
+# Listar VM's no formato YAML
+az vm list -g $rg -o yaml
+
+# Mostrar detalhes da VM
+az vm show -g $rg -n $vm -o yaml
+az vm show -g $rg -n $vm --query "name"
+
+# Mostrar mais detalhes (formato tsv) da VM e obter ip publico
+az vm show -d -g $rg -n $vm -o tsv
+az vm show -d -g $rg -n $vm --query publicIps -o yaml
+
+# Abrir a porta 80
+az vm open-port --port 80 -g $rg -n $vm
+
+# request no ip publico da VM - apresentara erro por ainda nao haver um web server instalado
+curl 104.41.10.194
+
+# instalar IIS
+az vm run-command invoke -g $rg -n $vm --command-id RunPowerShellScript --scripts "Install-WindowsFeature -name Web-Server -IncludeManagementTools"
+
+# Adicionar pagina customizada no iis
+az vm run-command invoke -g $rg -n $vm --command-id RunPowerShellScript --scripts 'Set-Content -Path "C:\inetpub\wwwroot\iisstart.htm" -Value "Oi, Virtual Machinme do Azure"'
+
+# Excluir grupo de recursos
+az group delete -n $rg -y
