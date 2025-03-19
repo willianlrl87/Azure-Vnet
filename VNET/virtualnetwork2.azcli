@@ -1,0 +1,63 @@
+# login no azure
+az login --use-device-code
+
+
+# Parametros gerais
+rg=rg-virtualnetwork
+local=eastus
+
+# Parametros Virtual Network
+vnetbr=vnet-brazilsouth
+vnetus=vnet-eastus
+
+# Criar grupo de recursos
+az group create -n $rg -l $local
+
+# Criar reder virtuais do azure
+az network vnet create -g $rg -n $vnetbr --address-prefixes 10.0.0.0/24 -l $local
+
+# Criar rede virtual e subnet
+az network vnet create -g $rg -n $vneteastus --address-prefixes 20.0.0.0/16 --subnet-name snet-default --subnet-prefixes 20.0.0.0/24 -l eastus
+
+#listar redes virtuais
+az network vnet list
+az network vnet list -g $rg -o yaml
+
+# listar redes virtuais em uma subscription que especificam um determinado prefixo de endereço
+az network vnet list --query "[?contains(addressSpace.addressPrefixes, '10.0.0.0/16')]" -o table
+
+# Detalhar Vnet
+az network vnet show -g $rg -n $vnetbr -o yaml
+
+# Atualizar os dados da rede virtual
+az network vnet update --address-prefixes 10.0.0.0/16 -n $vnetbr -g $rg
+
+# Listar ip's disponíveis na vnet
+az network vnet list-available-ips -g $rg -n $vnetbr
+
+# Criar subnets na vnet
+az network vnet subnet create -g $rg --vnet-name $vnetbr -n snet1 --address-prefixes 10.0.0.0/27
+az network vnet subnet create -g $rg --vnet-name $vnetbr -n snet2 --address-prefixes 10.0.1.0/24
+az network vnet subnet create -g $rg --vnet-name $vnetbr -n snet3 --address-prefixes 10.0.2.0/24
+az network vnet subnet create -g $rg --vnet-name $vnetbr -n snet4 --address-prefixes 10.0.3.0/26
+
+# Listar subnets na vnet
+az network vnet subnet list -g $rg --vnet-name $vnetbr -o table
+
+# Mostrar detalhes da subnet
+az network vnet show -g $rg --vnet-name $vnetbr -n snet1 -o yaml
+
+# listar alguns ips disponíveis na subnet
+az network vnet subnet list-available-ips -g $rg --vnet-name $vnetbr -n snet4
+
+# Atualizar subnet address prefixes
+az network vnet subnet update -n snet4 --vnet-name $vnetbr -g $rg --address-prefixes "10.0.5.0/24"
+
+# Excluir subnet
+az network vnet subnet delete -n snet4 -g $rg --vnet-name $vnetbr
+
+# Excluir virtual network
+az network vnet delete -n $vnetbr -g $rg
+
+# Excluir grupo de recursos
+az group delete -n $rg -y
