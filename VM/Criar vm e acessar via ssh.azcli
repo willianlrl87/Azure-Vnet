@@ -1,0 +1,33 @@
+# Logar no Azure
+az login
+
+# Obter chave ssh
+ssh-keygen -m PEM -t rsa -b 2048
+
+# Parametros
+rg=rg-linux
+local=brazilsouth
+vm=vm-ubuntu
+img=Ubuntu2404
+user=azureuser
+
+# Criar grupo de recursos
+az group create -n $rg -l $local
+
+# Criar maquina virtual
+az vm create -g $rg -n $vm --image $img --admin-username $user --ssh-key-value ~/.ssh/id_rsa.pub
+
+# Obter IP publico da VM
+ip=$(az vm show -d -g $rg -n $vm --query publicIps -o tsv) #104.41.62.53
+
+# Entrar na maquina virtual por ssh
+ssh -i ~/.ssh/id_rsa $user@$ip
+
+# Abrir a porta 80
+az vm open-port --port 80 -g $rg -n $vm
+
+# Requisição na porta 80
+curl $ip
+
+# Excluir grupo de recursos
+az group delete -n $rg -y

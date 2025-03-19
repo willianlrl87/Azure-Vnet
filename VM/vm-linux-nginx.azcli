@@ -1,0 +1,34 @@
+# Login no azure
+az login
+
+# Parametros
+rg=rg-vmlinux
+local=brazilsouth
+vm=vm-debian
+user=azureuser
+img=debian11
+
+#Criar grupo de recursos
+az group create -n $rg -l $local
+
+# Criar vm com debian
+az vm create -g $rg -n $vm --image $img --admin-username $user --generate-ssh-keys --public-ip-sku Basic
+
+# Listar vm's
+az vm list -g $rg -o yaml
+
+# Mostrar detalhes da VM
+az vm show -g $rg -n $vm -o yaml
+az vm show -g $rg -n $vm --query "name"
+
+# Obter ip publico da VM
+ip=$(az vm show -d -g $rg -n $vm --query "publicIps" -o tsv)
+
+# Instalar nginx no debian
+az vm run-command invoke -g $rg -n $vm --command-id RunShellScript --scripts "sudo apt-get update && sudo apt-get install -y nginx"
+
+# Liberar porta 80
+az vm open-port --port 80 -g $rg -n $vm
+
+# Excluir grupo de recursos
+az group delete -n $rg -y
