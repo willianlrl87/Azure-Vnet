@@ -1,0 +1,94 @@
+#logar no azure
+az login
+
+#Parametros gerais
+rg=rg-nsg-appdb
+local=brazilsouth
+
+#Parametros da rede virtual
+nsg=nsg-appdb
+vnet=vnet-appdb
+snetapp=snet-application
+snetdb=snet-database
+
+# Parametros Gerais VM
+img=Win2019Datacenter
+sku=Standard_DS1_v2
+user=azureuser
+pass=tr@ining2025
+
+# Parametros da VM de aplicação
+vmapp=vm-app
+nicapp=nic-app
+ipapp=ip-app
+
+# Parametros do banco de dados
+vmdb=vm-db
+nicdb=nic-db
+ipdb=ip-db
+
+#Criar grupo de recursos
+az group create -n $rg -l $local
+
+#Criar network security group
+az network nsg create -g $rg -n $nsg
+
+#Criar Vnet e Subnet
+az network vnet create -g $rg -n $vnet --address-prefixes 10.0.0.0/16  --subnet-name $snetapp --subnet-prefixes 10.0.0.0/24 --network-security-group $nsg
+
+#Criar subnet para VM de banco de dados
+az network vnet subnet create -g $rg -n snetdb --vnet-name $vnet --address-prefixes 10.0.1.0/24 --network-security-group $nsg
+
+# Criar VM da aplicação - IP publico
+az network public-ip create -g $rg -n $ipapp --sku Standard -l $local
+
+# Criar VM da aplicação - NIC
+az network nic create -g $rg -n $nicapp --vnet-name $vnet --subnet $snetapp --public-ip-address $ipapp
+
+# Criar VM da aplicação
+az vm create -g $rg -n $vmapp --image $img --size $sku --admin-username $user --admin-password $pass --nics $nicapp
+
+
+# Criar VM do banco de dados - IP publico
+az network public-ip create -g $rg -n $ipdb --sku Standard -l $local
+
+# Criar VM do banco de dados - NIC
+az network nic create -g $rg -n $nicdb --vnet-name $vnet --subnet $snetdb --public-ip-address $ipdb
+
+# Criar VM do banco de dados
+az vm create -g $rg -n $vmdb --image $img --size $sku --admin-username $user --admin-password $pass --nics $nicdb
+
+# Criar NSG Rule para liberar RDP nas VM's
+az network nsg rule create -g $rg --nsg-name $nsg -n PermiteAcessoRDP --direction Inbound --priority 100 --source-address-prefixes '*' --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 3389 --access Allow --protocol Tcp --description "Permite acesso a porta 3389 - RDP Inbound"
+
+
+# Instalar IIS nas VM's
+az vm run-command invoke -g $rg -n $vmapp --command-id RunPowerShellScripts --scripts "Install-WindowsFeatures -name Web-Server --IncludeManagementTools"
+az vm run-command invoke -g $rg -n $vmapp --command-id RunPowerShellScripts --scripts "Set-Content -Path C:\inetpub\wwwroot\iisstart.htm" -Value "Oi, Virtual Machine do Azure para Aplicação"
+
+az vm run-command invoke -g $rg -n $vmdb --command-id RunPowerShellScripts --scripts "Install-WindowsFeatures -name Web-Server --IncludeManagementTools"
+az vm run-command invoke -g $rg -n $vmdb --command-id RunPowerShellScripts --scripts "Set-Content -Path C:\inetpub\wwwroot\iisstart.htm" -Value "Oi, Virtual Machine do Azure para Banco de Dados"
+
+# Criar regra para bloquear acesso entre VM Database e aplicação
+az network nsg rule create -g $rg --nsg-name $nsg -n "BloquearDatabaseAppHTTP" \
+--direction Inbound --priority 900 --source-address-prefixes 10.0.1.4 \
+--source-port-ranges '*' --destination-address-prefixes 10.0.0.4 \
+--destination-port-ranges 80 --access Deny --protocol Tcp \
+--description "Bloquear acesso da VM Database para a VM de aplicação na porta 80 HTTP"
+
+# Liberar porta 80 - Internet
+az network nsg rule create -g $rg --nsg-name $nsg -n LiberaPorta80 \
+--direction Inbound --priority 101 --source-address-prefixes '*' --source-port-ranges '*' \
+--destinatio-address-prefixes '*' --destination-port-ranges 80 --access Allow --protocol Tcp --description "Expor a porta 80 - HTTP"
+
+# Excluir liberação porta 80 - Internet
+az network nsg rule delete -g $rg --nsg-name $nsg -n LiberaPorta80
+
+# Liberar a porta 80 apenas na VM da Aplicação
+az network nsg rule create -g $rg --nsg-name $nsg -n LiberaPorta80App \
+--direction Inbound --priority 101 --source-address-prefixes '*' --source-port-ranges '*' \
+--destination-address-prefixes 10.0.0.4 --destination-port-ranges 80 --access Allow --protocol Tcp \
+--description "Expor a porta 80 HTTP apenas na VM da aplicação"
+
+# Excluir grupo de recursos
+az group delete -n $rg -y --no-wait
